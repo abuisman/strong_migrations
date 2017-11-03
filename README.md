@@ -37,36 +37,40 @@ Also checks for best practices:
 
 ## The Zero Downtime Way
 
-### Adding a column with a default value
+### Adding a column with a default value (using 2 migrations)
 
-1. Add the column without a default value
-2. Add the default value
-3. Commit the transaction
-4. Backfill the column
+1. Add the column without a default value in the first migration
+2. Add the default value in the second migration
+3. Backfill the column
 
 ```ruby
 class AddSomeColumnToUsers < ActiveRecord::Migration
   def up
     # 1
     add_column :users, :some_column, :text
+  end
 
+  def down
+    remove_column :users, :some_column
+  end
+end
+
+class SetDefaultValueForSomeColumn < ActiveRecord::Migration
+  def up
     # 2
     change_column_default :users, :some_column, "default_value"
-
-    # 3
-    commit_db_transaction
-
-    # 4.a (Rails 5+)
+    
+    # 3.a (Rails 5+)
     User.in_batches.update_all some_column: "default_value"
 
-    # 4.b (Rails < 5)
+    # 3.b (Rails < 5)
     User.find_in_batches do |users|
       User.where(id: users.map(&:id)).update_all some_column: "default_value"
     end
   end
 
   def down
-    remove_column :users, :some_column
+    change_column_default :users, :some_column, nil
   end
 end
 ```
